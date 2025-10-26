@@ -2,78 +2,117 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePageRequest;
+use App\Http\Requests\UpdatePageRequest;
 use App\Models\Page;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class PageController extends Controller
 {
-    // ПУБЛІЧНЕ: список
-    public function index()
+    public function index(Request $request)
     {
-        return Page::select('id','title','slug','created_at','updated_at')->latest()->get();
+        $q = Page::query()
+            ->when($request->filled('type'), fn($x) => $x->where('type', $request->input('type')))
+            ->when($request->filled('locale'), fn($x) => $x->where('locale', $request->input('locale')))
+            ->when($request->filled('q'), function ($x) use ($request) {
+                $q = $request->input('q');
+                $x->where(fn ($w) => $w->where('title', 'like', "%$q%")
+                    ->orWhere('content', 'like', "%$q%"));
+            })
+            ->orderByDesc('updated_at');
+
+        return $q->paginate($request->integer('per_page', 20));
     }
 
-    // ПУБЛІЧНЕ: по id
-    public function show(int $id)
+    public function show($id)
     {
         return Page::findOrFail($id);
     }
 
-    // ПУБЛІЧНЕ: по slug
-    public function showBySlug(string $slug)
+    public function showBySlug($slug)
     {
         return Page::where('slug', $slug)->firstOrFail();
     }
 
-    // ПРИВАТНЕ: створення
-    public function store(Request $request)
+    public function store(StorePageRequest $request)
     {
-        $data = $request->validate([
-            'title'   => ['required','string','max:255'],
-            'slug'    => ['required','string','max:255','alpha_dash', 'unique:pages,slug'],
-            'content' => ['nullable','string'],
-        ]);
-
+        $data = $request->validated();
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
+        }
+        $data['created_by'] = $request->user()->id ?? null;
+        $data['updated_by'] = $request->user()->id ?? null;
+        if (($data['status'] ?? null) === 'published') {
+            $data['published_at'] = now();
+        }
         $page = Page::create($data);
+
+        $page->revisions()->create([
+            'editor_id' => $request->user()->id,
+            'snapshot'  => $page->content ?? '',
+            'summary'   => 'Створення',
+        ]);
 
         return response()->json($page, 201);
     }
 
-    // ПРИВАТНЕ: оновлення
-    public function update(Request $request, int $id)
+    public function update($id, UpdatePageRequest $request)
     {
         $page = Page::findOrFail($id);
+        $data = $request->validated();
 
-        $data = $request->validate([
-            'title'   => ['sometimes','string','max:255'],
-            'slug'    => ['sometimes','string','max:255','alpha_dash', Rule::unique('pages','slug')->ignore($page->id)],
-            'content' => ['nullable','string'],
+        if (isset($data['title']) && empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
+        }
+
+        $data['updated_by'] = $request->user()->id ?? null;
+        if (($data['status'] ?? null) === 'published' && !$page->published_at) {
+            $data['published_at'] = now();
+        }
+        $page->update($data);
+
+        $page->revisions()->create([
+            'editor_id' => $request->user()->id,
+            'snapshot'  => $page->content ?? '',
+            'summary'   => $request->input('rev_summary', 'Оновлення'),
         ]);
 
-        $page->update($data);
         return response()->json($page);
     }
 
-    // ПРИВАТНЕ: видалення
-    public function destroy(int $id)
+    public function destroy($id)
     {
-        Page::findOrFail($id)->delete();
+        $page = Page::findOrFail($id);
+        $page->delete();
         return response()->noContent();
     }
 
-    // ПРИВАТНЕ: ревізії (заглушка)
-    public function revisions(int $id)
+    public function revisions($id)
     {
-        return response()->json(['revisions' => []]);
+        $page = Page::findOrFail($id);
+        return $page->revisions()->latest()->get();
     }
 
-    // Пошук (опційно)
+    public function restore($id, $rev)
+    {
+        $page = Page::findOrFail($id);
+        $revision = $page->revisions()->findOrFail($rev);
+        $page->update(['content' => $revision->snapshot]);
+
+        $page->revisions()->create([
+            'editor_id' => auth()->id(),
+            'snapshot'  => $page->content ?? '',
+            'summary'   => 'Відновлено ревізію',
+        ]);
+
+        return response()->json($page);
+    }
+
     public function search(Request $request)
     {
-        $q = $request->query('q');
-        return Page::where('title', 'like', "%$q%")
-            ->orWhere('content', 'like', "%$q%")
-            ->get();
+        $request->validate(['q' => 'required|string']);
+        $request->merge(['page' => $request->page ?? 1]);
+        return $this->index($request);
     }
 }

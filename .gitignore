@@ -1,49 +1,38 @@
-*.log
+# OS / editors
 .DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
+Thumbs.db
 /.idea
-/.nova
-/.phpunit.cache
 /.vscode
-/.zed
-/auth.json
-/node_modules
+/.fleet
+/.nova
+
+# Dependencies / builds
+/node_modules/
+/vendor/
 /public/build
 /public/hot
 /public/storage
+
+# Storage / logs
 /storage/*.key
 /storage/pail
-/vendor
-Homestead.json
-Homestead.yaml
-Thumbs.db
-
-/.env
-/.env.*
-!/env.example
-
-/vendor/
-/node_modules/
-
-/storage/*.key
 /storage/framework/cache/*
 /storage/framework/sessions/*
 /storage/framework/testing/*
 /storage/framework/views/*
 /storage/logs/*.log
 
-/public/storage
-/public/hot
-/public/build
+# PHP / tools
+.phpactor.json
+.phpunit.result.cache
+/.phpunit.cache
+/auth.json
 
-/.idea
-/.vscode
-.DS_Store
-
+# Databases & dumps
 *.sql
 *.sqlite
+
+# Env files
+.env
+.env.*
+!.env.example
