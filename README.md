@@ -2,20 +2,20 @@
 
 ---
 
-Бекенд проєкту написано на **PHP (Laravel)**.
+The backend of the project is written in **PHP (Laravel)**.
 
 ---
 
-## Встановлення
+## Installation
 
-Інструкції з налаштування середовища та запуску можна знайти у файлі **`README_STARTER`**.
-1. Клонуйте репозиторій
-2. Встановіть залежності
-3. Запустіть локальний сервер
-4. Насолоджуйтесь розробкою!
+Instructions for setting up the environment and running the project can be found in the file **`README_STARTER`**.
+1. Clone the repository  
+2. Install dependencies  
+3. Start the local server  
+4. Enjoy development!
 
 ---
 
-### Гарного кодингу!
+### Гарного кодингу! | Happy coding!
 
-Бажаю успішної розробки та приємного кодингу!
+Wishing you successful development and enjoyable coding!
